@@ -125,9 +125,9 @@
     "cart_type": "drawer",
     "show_vendor": false,
     "show_cart_note": false,
-    "cart_drawer_collection": "",
+    "cart_drawer_collection": "all",
     "cart_upsell_enabled": true,
-    "cart_upsell_show_modal": false,
+    "cart_upsell_show_modal": true,
     "cart_color_scheme": "scheme-1",
     "sections": {
       "main-password-header": {
