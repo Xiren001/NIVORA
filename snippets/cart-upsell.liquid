@@ -99,25 +99,41 @@
             </div>
 
             <div class="cart-upsell__action">
-              {%- if product.variants.size == 1 -%}
-                <button
-                  type="button"
-                  class="cart-upsell__add-btn button button--secondary"
-                  data-upsell-add
-                  data-variant-id="{{ featured_variant.id }}"
-                  data-product-id="{{ product.id }}"
-                  aria-label="{{ 'sections.cart.upsell.add_label' | t: title: product.title }}"
-                >
-                  {{ 'sections.cart.upsell.add' | t }}
-                </button>
-              {%- else -%}
-                <a
-                  href="{{ product.url }}"
-                  class="cart-upsell__options-link button button--secondary"
-                >
-                  {{ 'products.product.choose_options' | t }}
-                </a>
+              {%- if product.variants.size > 1 -%}
+                {%- comment -%} Variant pills — first option only, available variants only {%- endcomment -%}
+                {%- assign first_opt = product.options_with_values | first -%}
+                <div class="cart-upsell__variants" role="group" aria-label="{{ first_opt.name }}">
+                  {%- for value in first_opt.values limit: 6 -%}
+                    {%- assign pill_variant_id = '' -%}
+                    {%- for variant in product.variants -%}
+                      {%- if variant.option1 == value and variant.available -%}
+                        {%- assign pill_variant_id = variant.id -%}
+                        {%- break -%}
+                      {%- endif -%}
+                    {%- endfor -%}
+                    {%- if pill_variant_id != '' -%}
+                      <button
+                        type="button"
+                        class="cart-upsell__variant-btn{% if forloop.first %} is-selected{% endif %}"
+                        data-variant-btn
+                        data-variant-id="{{ pill_variant_id }}"
+                        aria-label="{{ first_opt.name }}: {{ value }}"
+                        aria-pressed="{% if forloop.first %}true{% else %}false{% endif %}"
+                      >{{ value }}</button>
+                    {%- endif -%}
+                  {%- endfor -%}
+                </div>
               {%- endif -%}
+              <button
+                type="button"
+                class="cart-upsell__add-btn button button--secondary"
+                data-upsell-add
+                data-variant-id="{{ featured_variant.id }}"
+                data-product-id="{{ product.id }}"
+                aria-label="{{ 'sections.cart.upsell.add_label' | t: title: product.title }}"
+              >
+                {{ 'sections.cart.upsell.add' | t }}
+              </button>
             </div>
           </li>
 

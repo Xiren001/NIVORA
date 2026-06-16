@@ -1,126 +1,156 @@
 (function () {
   'use strict';
 
-  // ─── Helpers ──────────────────────────────────────────────────────────────
+  var CARET_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l4 4 4-4"/></svg>';
+
+  // ─── Cart helpers ─────────────────────────────────────────────────────────
 
   function addToCart(variantId) {
     return fetch('/cart/add.js', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ id: parseInt(variantId, 10), quantity: 1 }),
-    }).then(function (res) {
-      return res.json();
-    });
+    }).then(function (r) { return r.json(); });
   }
 
   function refreshCartCount() {
     fetch('/cart.js')
-      .then(function (res) { return res.json(); })
+      .then(function (r) { return r.json(); })
       .then(function (cart) {
-        document.querySelectorAll('.cart-count-bubble').forEach(function (bubble) {
-          var visible = bubble.querySelector('[aria-hidden]');
-          var sr = bubble.querySelector('.visually-hidden');
-          if (visible) visible.textContent = cart.item_count;
-          if (sr) sr.textContent = cart.item_count;
-          // Show the bubble if previously hidden (empty cart)
-          bubble.classList.remove('hidden');
+        document.querySelectorAll('.cart-count-bubble').forEach(function (el) {
+          var vis = el.querySelector('[aria-hidden]');
+          var sr  = el.querySelector('.visually-hidden');
+          if (vis) vis.textContent = cart.item_count;
+          if (sr)  sr.textContent  = cart.item_count;
+          el.classList.remove('hidden');
         });
       })
       .catch(function () {});
   }
 
-  /**
-   * After adding a upsell item, refresh the cart drawer totals via Shopify's
-   * Section Rendering API so the subtotal stays in sync without a full page reload.
-   */
   function refreshDrawerTotals() {
     fetch('/?sections=cart-drawer')
-      .then(function (res) { return res.json(); })
+      .then(function (r) { return r.json(); })
       .then(function (data) {
         if (!data['cart-drawer']) return;
-        var parser = new DOMParser();
-        var doc = parser.parseFromString(data['cart-drawer'], 'text/html');
-
-        // Update total price text only — avoids disrupting scroll/focus
+        var doc = new DOMParser().parseFromString(data['cart-drawer'], 'text/html');
         var newTotal = doc.querySelector('.totals__total-value');
         var liveTotal = document.querySelector('#CartDrawer .totals__total-value');
-        if (newTotal && liveTotal) {
-          liveTotal.textContent = newTotal.textContent;
-        }
-
-        // Update the live-region text used for screen readers
-        var liveRegion = document.getElementById('CartDrawer-LiveRegionText');
-        if (liveRegion) {
-          var newRegion = doc.getElementById('CartDrawer-LiveRegionText');
-          if (newRegion) liveRegion.textContent = newRegion.textContent;
-        }
+        if (newTotal && liveTotal) liveTotal.textContent = newTotal.textContent;
       })
       .catch(function () {});
   }
 
-  /**
-   * Hide an upsell item from the strip once its product is in the cart.
-   * Called after a successful add-to-cart anywhere in the page.
-   */
   function hideStripItem(productId) {
-    var selector = '.cart-upsell__item[data-upsell-product-id="' + productId + '"]';
-    document.querySelectorAll(selector).forEach(function (el) {
-      el.hidden = true;
-    });
+    document.querySelectorAll('.cart-upsell__item[data-upsell-product-id="' + productId + '"]')
+      .forEach(function (el) { el.hidden = true; });
+
+    // Rebuild the nav after hiding an item
+    document.querySelectorAll('.cart-upsell--drawer[data-cart-upsell]')
+      .forEach(function (strip) { refreshNav(strip); });
   }
 
-  /**
-   * Read current cart state and hide any strip items whose products are already carted.
-   * Runs on cart update events so the strip stays accurate after quantity changes too.
-   */
   function syncStripWithCart() {
     fetch('/cart.js')
-      .then(function (res) { return res.json(); })
+      .then(function (r) { return r.json(); })
       .then(function (cart) {
-        var cartedIds = new Set(cart.items.map(function (item) { return String(item.product_id); }));
-        document.querySelectorAll('.cart-upsell__item[data-upsell-product-id]').forEach(function (item) {
-          if (cartedIds.has(item.dataset.upsellProductId)) {
-            item.hidden = true;
-          }
+        var ids = new Set(cart.items.map(function (i) { return String(i.product_id); }));
+        document.querySelectorAll('.cart-upsell__item[data-upsell-product-id]').forEach(function (el) {
+          if (ids.has(el.dataset.upsellProductId)) el.hidden = true;
         });
+        document.querySelectorAll('.cart-upsell--drawer[data-cart-upsell]')
+          .forEach(function (strip) { refreshNav(strip); });
       })
       .catch(function () {});
+  }
+
+  // ─── 1-up carousel nav ────────────────────────────────────────────────────
+
+  function initAllNavs() {
+    document.querySelectorAll('.cart-upsell--drawer[data-cart-upsell]')
+      .forEach(function (strip) { refreshNav(strip); });
+  }
+
+  function refreshNav(strip) {
+    var list = strip.querySelector('.cart-upsell__list');
+    if (!list) return;
+
+    var oldNav = strip.querySelector('.cart-upsell__nav');
+    if (oldNav) oldNav.remove();
+    if (list._upsellScroll) list.removeEventListener('scroll', list._upsellScroll, { passive: true });
+
+    var items = Array.from(list.querySelectorAll('.cart-upsell__item:not([hidden])'));
+    if (items.length <= 1) return;
+
+    var nav = document.createElement('div');
+    nav.className = 'cart-upsell__nav';
+    nav.innerHTML =
+      '<button type="button" class="cart-upsell__nav-btn cart-upsell__nav-btn--prev" data-nav-prev aria-label="Previous" disabled>' + CARET_SVG + '</button>' +
+      '<div class="cart-upsell__dots">' +
+        items.map(function (_, i) {
+          return '<button type="button" class="cart-upsell__dot' + (i === 0 ? ' is-active' : '') +
+            '" data-dot-index="' + i + '" aria-label="Product ' + (i + 1) + '"></button>';
+        }).join('') +
+      '</div>' +
+      '<button type="button" class="cart-upsell__nav-btn cart-upsell__nav-btn--next" data-nav-next aria-label="Next">' + CARET_SVG + '</button>';
+
+    strip.appendChild(nav);
+
+    function idx() { return Math.round(list.scrollLeft / (list.clientWidth || 1)); }
+
+    function goTo(n) {
+      list.scrollTo({ left: list.clientWidth * Math.max(0, Math.min(items.length - 1, n)), behavior: 'smooth' });
+    }
+
+    function update() {
+      var i = idx();
+      nav.querySelectorAll('.cart-upsell__dot').forEach(function (d, j) { d.classList.toggle('is-active', j === i); });
+      nav.querySelector('[data-nav-prev]').disabled = i === 0;
+      nav.querySelector('[data-nav-next]').disabled = i === items.length - 1;
+    }
+
+    list._upsellScroll = update;
+    list.addEventListener('scroll', update, { passive: true });
+
+    nav.querySelector('[data-nav-prev]').addEventListener('click', function () { goTo(idx() - 1); });
+    nav.querySelector('[data-nav-next]').addEventListener('click', function () { goTo(idx() + 1); });
+    nav.querySelectorAll('[data-dot-index]').forEach(function (d) {
+      d.addEventListener('click', function () { goTo(parseInt(d.dataset.dotIndex, 10)); });
+    });
   }
 
   // ─── Pre-checkout modal ───────────────────────────────────────────────────
 
-  var _checkoutSource = null; // button that triggered checkout
+  var _checkoutSource = null;
 
-  function getVisibleStripItems() {
+  function getVisibleItems() {
     return Array.from(document.querySelectorAll('.cart-upsell__item:not([hidden])'));
   }
 
-  function openModal(stripItems) {
+  function openModal(items) {
     var modal = document.getElementById('CartUpsellModal');
     if (!modal) return;
 
     var container = modal.querySelector('[data-modal-products]');
     container.innerHTML = '';
-
-    stripItems.slice(0, 3).forEach(function (stripItem) {
-      var card = buildModalCard(stripItem);
+    items.slice(0, 3).forEach(function (item) {
+      var card = buildModalCard(item);
       if (card) container.appendChild(card);
     });
 
     modal.hidden = false;
     document.body.classList.add('cart-upsell-modal-open');
-
-    var closeBtn = modal.querySelector('[data-modal-close]');
-    if (closeBtn) closeBtn.focus();
+    var btn = modal.querySelector('[data-modal-close]');
+    if (btn) btn.focus();
   }
 
-  function buildModalCard(stripItem) {
-    var productId = stripItem.dataset.upsellProductId;
-    var addBtn = stripItem.querySelector('[data-upsell-add]');
-    var optionsLink = stripItem.querySelector('.cart-upsell__options-link');
-    var titleEl = stripItem.querySelector('.cart-upsell__title');
-    var priceEl = stripItem.querySelector('.cart-upsell__price');
-    var imgEl = stripItem.querySelector('.cart-upsell__img');
+  function buildModalCard(item) {
+    var productId   = item.dataset.upsellProductId;
+    var addBtn      = item.querySelector('[data-upsell-add]');
+    var optionsLink = item.querySelector('.cart-upsell__options-link');
+    var titleEl     = item.querySelector('.cart-upsell__title');
+    var priceEl     = item.querySelector('.cart-upsell__price');
+    var imgEl       = item.querySelector('.cart-upsell__img');
 
     var div = document.createElement('div');
     div.className = 'cart-upsell-modal__product';
@@ -128,57 +158,49 @@
     var imgHtml = imgEl
       ? '<img class="cart-upsell-modal__img" src="' + imgEl.src + '" alt="' + (imgEl.alt || '') + '" width="56" height="56" loading="lazy">'
       : '';
-
-    var titleHtml = titleEl
-      ? '<p class="cart-upsell-modal__product-title">' + titleEl.textContent.trim() + '</p>'
-      : '';
-
-    var priceHtml = priceEl
-      ? '<p class="cart-upsell-modal__product-price">' + priceEl.innerHTML + '</p>'
-      : '';
+    var titleHtml = titleEl ? '<p class="cart-upsell-modal__product-title">' + titleEl.textContent.trim() + '</p>' : '';
+    var priceHtml = priceEl ? '<p class="cart-upsell-modal__product-price">' + priceEl.innerHTML + '</p>'          : '';
 
     var actionHtml = '';
     if (addBtn) {
       actionHtml = '<button type="button" class="cart-upsell-modal__add button button--secondary"'
-        + ' data-modal-upsell-add'
-        + ' data-variant-id="' + addBtn.dataset.variantId + '"'
-        + ' data-product-id="' + productId + '">'
-        + (addBtn.textContent.trim() || '+')
-        + '</button>';
+        + ' data-modal-upsell-add data-variant-id="' + addBtn.dataset.variantId + '" data-product-id="' + productId + '">'
+        + (addBtn.textContent.trim() || '+') + '</button>';
     } else if (optionsLink) {
       actionHtml = '<a href="' + optionsLink.href + '" class="cart-upsell-modal__add button button--secondary">'
-        + optionsLink.textContent.trim()
-        + '</a>';
+        + optionsLink.textContent.trim() + '</a>';
     }
 
-    div.innerHTML = imgHtml
-      + '<div class="cart-upsell-modal__product-info">' + titleHtml + priceHtml + '</div>'
-      + actionHtml;
-
+    div.innerHTML = imgHtml + '<div class="cart-upsell-modal__product-info">' + titleHtml + priceHtml + '</div>' + actionHtml;
     return div;
   }
 
   function closeModal() {
     var modal = document.getElementById('CartUpsellModal');
-    if (!modal) return;
+    if (!modal || modal.hidden) return;
     modal.hidden = true;
     document.body.classList.remove('cart-upsell-modal-open');
-    if (_checkoutSource) _checkoutSource.focus();
   }
 
   function proceedToCheckout() {
-    if (!_checkoutSource) {
-      window.location.href = '/checkout';
-      return;
+    // Restore checkout button state before submitting (clears any stuck loading/disabled classes)
+    if (_checkoutSource) {
+      _checkoutSource.disabled  = false;
+      _checkoutSource.classList.remove('loading', 'is-loading');
     }
-    // Use the button's associated form so Shopify preserves cart token, notes, etc.
+
+    if (!_checkoutSource) { window.location.href = '/checkout'; return; }
+
     var form = _checkoutSource.form
       || document.getElementById('CartDrawer-Form')
       || document.getElementById('cart');
-    if (form && typeof form.requestSubmit === 'function') {
-      form.requestSubmit(_checkoutSource);
-    } else if (form) {
-      form.submit();
+
+    if (form) {
+      if (typeof form.requestSubmit === 'function') {
+        form.requestSubmit(_checkoutSource);
+      } else {
+        form.submit();
+      }
     } else {
       window.location.href = '/checkout';
     }
@@ -188,19 +210,33 @@
 
   document.addEventListener('click', function (e) {
 
-    // 1. Upsell strip "Add" button
+    // Variant pill selection
+    var variantBtn = e.target.closest('[data-variant-btn]');
+    if (variantBtn) {
+      var item = variantBtn.closest('.cart-upsell__item');
+      if (item) {
+        item.querySelectorAll('[data-variant-btn]').forEach(function (b) {
+          b.classList.remove('is-selected');
+          b.setAttribute('aria-pressed', 'false');
+        });
+        variantBtn.classList.add('is-selected');
+        variantBtn.setAttribute('aria-pressed', 'true');
+        var addBtn = item.querySelector('[data-upsell-add]');
+        if (addBtn) addBtn.dataset.variantId = variantBtn.dataset.variantId;
+      }
+      return;
+    }
+
+    // Upsell strip "Add" button
     var addBtn = e.target.closest('[data-upsell-add]');
     if (addBtn) {
       e.preventDefault();
       if (addBtn.disabled) return;
-
-      var variantId = addBtn.dataset.variantId;
-      var productId = addBtn.dataset.productId;
-      var originalLabel = addBtn.textContent.trim();
-
+      var variantId  = addBtn.dataset.variantId;
+      var productId  = addBtn.dataset.productId;
+      var origLabel  = addBtn.textContent.trim();
       addBtn.disabled = true;
-      addBtn.textContent = '…'; // ellipsis
-
+      addBtn.textContent = '…';
       addToCart(variantId)
         .then(function (data) {
           if (data.status) throw new Error(data.description || 'Cart error');
@@ -210,20 +246,18 @@
         })
         .catch(function () {
           addBtn.disabled = false;
-          addBtn.textContent = originalLabel;
+          addBtn.textContent = origLabel;
         });
       return;
     }
 
-    // 2. Checkout button intercept (only when modal is present & items are available)
+    // Checkout button intercept
     var checkoutBtn = e.target.closest('#CartDrawer-Checkout, #checkout');
     if (checkoutBtn) {
       var modal = document.getElementById('CartUpsellModal');
-      if (!modal) return; // modal not in DOM — let checkout proceed normally
-
-      var visible = getVisibleStripItems();
-      if (visible.length === 0) return; // nothing to upsell — let checkout proceed
-
+      if (!modal) return;
+      var visible = getVisibleItems();
+      if (visible.length === 0) return;
       e.preventDefault();
       e.stopImmediatePropagation();
       _checkoutSource = checkoutBtn;
@@ -231,59 +265,51 @@
       return;
     }
 
-    // 3. Modal overlay click → close
+    // Modal overlay click → close WITHOUT proceeding (user changed their mind)
     if (e.target.closest('[data-modal-overlay]')) {
       closeModal();
       return;
     }
 
-    // 4. Modal close button
+    // Modal X (close button) → close AND proceed to checkout
     if (e.target.closest('[data-modal-close]')) {
       closeModal();
+      proceedToCheckout();
       return;
     }
 
-    // 5. Modal "skip" → close + proceed to checkout
+    // Modal "No thanks" skip → close AND proceed to checkout
     if (e.target.closest('[data-modal-skip]')) {
       closeModal();
       proceedToCheckout();
       return;
     }
 
-    // 6. Modal checkout button → proceed (close first)
+    // Modal checkout button
     if (e.target.closest('[data-modal-checkout]')) {
       closeModal();
       proceedToCheckout();
       return;
     }
 
-    // 7. Modal product "Add" button
+    // Modal product "Add" button
     var modalAdd = e.target.closest('[data-modal-upsell-add]');
     if (modalAdd) {
       e.preventDefault();
       if (modalAdd.disabled) return;
-
       var mVariantId = modalAdd.dataset.variantId;
       var mProductId = modalAdd.dataset.productId;
-      var mOriginal = modalAdd.textContent.trim();
-
+      var mOrig      = modalAdd.textContent.trim();
       modalAdd.disabled = true;
       modalAdd.textContent = '…';
-
       addToCart(mVariantId)
         .then(function (data) {
           if (data.status) throw new Error(data.description || 'Cart error');
-
-          // Remove card from modal
           var card = modalAdd.closest('.cart-upsell-modal__product');
           if (card) card.remove();
-
-          // Mirror removal in strip
           hideStripItem(mProductId);
           refreshCartCount();
           refreshDrawerTotals();
-
-          // If modal is now empty, close and go to checkout
           var modal = document.getElementById('CartUpsellModal');
           if (modal && modal.querySelector('[data-modal-products]').children.length === 0) {
             closeModal();
@@ -292,38 +318,32 @@
         })
         .catch(function () {
           modalAdd.disabled = false;
-          modalAdd.textContent = mOriginal;
+          modalAdd.textContent = mOrig;
         });
       return;
     }
 
-  }, true); // capture phase so we fire before any form submit handlers
+  }, true); // capture phase — fires before form submit
 
-  // Escape key closes modal
+  // Escape key: close modal but DON'T proceed (same as overlay click)
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape') return;
     var modal = document.getElementById('CartUpsellModal');
     if (modal && !modal.hidden) closeModal();
   });
 
-  // ─── Cart update sync ─────────────────────────────────────────────────────
+  // ─── Cart count sync ──────────────────────────────────────────────────────
 
-  /**
-   * Dawn's pubsub.js exports subscribe/publish as module-level functions.
-   * We hook into the same cart state via a MutationObserver on the cart count
-   * bubble, which Dawn updates after every cart change. This lets us keep the
-   * upsell strip in sync without importing from pubsub.js.
-   */
-  var cartCountBubble = document.querySelector('.cart-count-bubble');
-  if (cartCountBubble) {
-    var observer = new MutationObserver(function () {
-      syncStripWithCart();
-    });
-    observer.observe(cartCountBubble, { childList: true, subtree: true, characterData: true });
+  // Watch for Dawn's cart count changes and keep upsell strip in sync
+  var bubble = document.querySelector('.cart-count-bubble');
+  if (bubble) {
+    new MutationObserver(function () { syncStripWithCart(); })
+      .observe(bubble, { childList: true, subtree: true, characterData: true });
   }
 
-  // Initial sync in case the page loaded with a non-empty cart and the
-  // server-side Liquid didn't have the latest state (edge case on cached pages)
+  // ─── Init ─────────────────────────────────────────────────────────────────
+
   syncStripWithCart();
+  initAllNavs();
 
 })();
