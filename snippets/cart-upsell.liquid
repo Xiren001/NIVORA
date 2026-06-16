@@ -1,0 +1,184 @@
+{% comment %}
+  Renders market-aware upsell strip + pre-checkout modal.
+
+  Usage:
+    {% render 'cart-upsell', context: 'drawer' %}   — inside cart drawer
+    {% render 'cart-upsell', context: 'page' %}     — on cart page
+
+  Requires:
+    settings.cart_upsell_enabled     (checkbox)
+    settings.cart_drawer_collection  (collection — shared with existing Dawn setting)
+    settings.cart_upsell_max_products (range 1–6)
+    settings.cart_upsell_show_modal  (checkbox, drawer context only)
+
+  Market awareness:
+    - product.available already respects the active Shopify Market's publishing rules,
+      so products unpublished in the current market are automatically excluded.
+    - Translate & Adapt serves product titles/descriptions in the current locale.
+    - All theme strings use {{ 'key' | t }} and follow the locale file.
+{% endcomment %}
+
+{%- if settings.cart_upsell_enabled == false or settings.cart_drawer_collection == blank -%}
+  {%- comment -%} Feature disabled or no collection configured — render nothing {%- endcomment -%}
+{%- else -%}
+
+  {%- assign upsell_col = settings.cart_drawer_collection -%}
+
+  {%- comment -%} Build a comma-delimited string of product IDs already in the cart {%- endcomment -%}
+  {%- assign carted_ids = ',' -%}
+  {%- for item in cart.items -%}
+    {%- assign carted_ids = carted_ids | append: item.product_id | append: ',' -%}
+  {%- endfor -%}
+
+  {%- comment -%} Count how many eligible upsell products exist before rendering anything {%- endcomment -%}
+  {%- assign eligible_count = 0 -%}
+  {%- for product in upsell_col.products -%}
+    {%- assign pid_check = ',' | append: product.id | append: ',' -%}
+    {%- unless carted_ids contains pid_check -%}
+      {%- if product.available -%}
+        {%- assign eligible_count = eligible_count | plus: 1 -%}
+      {%- endif -%}
+    {%- endunless -%}
+    {%- if eligible_count >= settings.cart_upsell_max_products -%}{%- break -%}{%- endif -%}
+  {%- endfor -%}
+
+  {%- if eligible_count > 0 -%}
+
+    {{ 'cart-upsell.css' | asset_url | stylesheet_tag }}
+    <script src="{{ 'cart-upsell.js' | asset_url }}" defer="defer"></script>
+
+    <div class="cart-upsell" data-cart-upsell>
+      <p class="cart-upsell__heading">{{ 'sections.cart.upsell.title' | t }}</p>
+
+      <ul class="cart-upsell__list" role="list">
+        {%- assign rendered = 0 -%}
+        {%- for product in upsell_col.products -%}
+          {%- if rendered >= settings.cart_upsell_max_products -%}{%- break -%}{%- endif -%}
+
+          {%- assign pid_check = ',' | append: product.id | append: ',' -%}
+          {%- if carted_ids contains pid_check -%}{%- continue -%}{%- endif -%}
+          {%- unless product.available -%}{%- continue -%}{%- endunless -%}
+
+          {%- assign featured_variant = product.selected_or_first_available_variant -%}
+          {%- assign rendered = rendered | plus: 1 -%}
+
+          <li
+            class="cart-upsell__item"
+            data-upsell-product-id="{{ product.id }}"
+          >
+            <a
+              href="{{ product.url }}"
+              class="cart-upsell__img-link"
+              tabindex="-1"
+              aria-hidden="true"
+            >
+              {%- if product.featured_image -%}
+                <img
+                  class="cart-upsell__img"
+                  src="{{ product.featured_image | image_url: width: 120 }}"
+                  alt="{{ product.featured_image.alt | escape }}"
+                  width="60"
+                  height="{{ 60 | divided_by: product.featured_image.aspect_ratio | round }}"
+                  loading="lazy"
+                >
+              {%- else -%}
+                <div class="cart-upsell__img cart-upsell__img--placeholder"></div>
+              {%- endif -%}
+            </a>
+
+            <div class="cart-upsell__meta">
+              <a href="{{ product.url }}" class="cart-upsell__title">
+                {{- product.title -}}
+              </a>
+              <p class="cart-upsell__price">
+                {%- if featured_variant.compare_at_price > featured_variant.price -%}
+                  <s class="cart-upsell__price-was">{{ featured_variant.compare_at_price | money }}</s>
+                {%- endif -%}
+                <span>{{ featured_variant.price | money }}</span>
+              </p>
+            </div>
+
+            <div class="cart-upsell__action">
+              {%- if product.variants.size == 1 -%}
+                <button
+                  type="button"
+                  class="cart-upsell__add-btn button button--secondary"
+                  data-upsell-add
+                  data-variant-id="{{ featured_variant.id }}"
+                  data-product-id="{{ product.id }}"
+                  aria-label="{{ 'sections.cart.upsell.add_label' | t: title: product.title }}"
+                >
+                  {{ 'sections.cart.upsell.add' | t }}
+                </button>
+              {%- else -%}
+                <a
+                  href="{{ product.url }}"
+                  class="cart-upsell__options-link button button--secondary"
+                >
+                  {{ 'products.product.choose_options' | t }}
+                </a>
+              {%- endif -%}
+            </div>
+          </li>
+
+        {%- endfor -%}
+      </ul>
+    </div>
+
+    {%- comment -%} Pre-checkout modal — drawer context only to avoid duplicate in DOM {%- endcomment -%}
+    {%- if settings.cart_upsell_show_modal and context == 'drawer' -%}
+      <div
+        id="CartUpsellModal"
+        class="cart-upsell-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="CartUpsellModalTitle"
+        hidden
+      >
+        <div class="cart-upsell-modal__overlay" data-modal-overlay></div>
+
+        <div class="cart-upsell-modal__dialog">
+          <button
+            type="button"
+            class="cart-upsell-modal__close"
+            data-modal-close
+            aria-label="{{ 'accessibility.close' | t }}"
+          >
+            {{- 'icon-close.svg' | inline_asset_content -}}
+          </button>
+
+          <div class="cart-upsell-modal__body">
+            <p class="cart-upsell-modal__eyebrow">
+              {{ 'sections.cart.upsell.modal_eyebrow' | t }}
+            </p>
+            <h2 id="CartUpsellModalTitle" class="cart-upsell-modal__title">
+              {{ 'sections.cart.upsell.modal_title' | t }}
+            </h2>
+
+            <div class="cart-upsell-modal__products" data-modal-products>
+              {%- comment -%} Populated by cart-upsell.js from the strip above {%- endcomment -%}
+            </div>
+
+            <div class="cart-upsell-modal__actions">
+              <button
+                type="button"
+                class="cart-upsell-modal__checkout button"
+                data-modal-checkout
+              >
+                {{ 'sections.cart.checkout' | t }}
+              </button>
+              <button
+                type="button"
+                class="cart-upsell-modal__skip"
+                data-modal-skip
+              >
+                {{ 'sections.cart.upsell.modal_skip' | t }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    {%- endif -%}
+
+  {%- endif -%}
+{%- endif -%}

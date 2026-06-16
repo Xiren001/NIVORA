@@ -1,0 +1,300 @@
+{% doc %}
+  @prompt
+    Section that is divided by two parts on the left side there's a video and on the right side, there's a headline which you can customize whether it's bold or semi bold and underneath the headline there's a sub headline/description. Make sure it's all in the middle and it's nicely placed both on desktop or mobile preview.
+{% enddoc %}
+{% assign ai_gen_id = block.id | replace: '_', '' | downcase %}
+
+{% style %}
+  .ai-video-content-{{ ai_gen_id }} {
+    display: block;
+    width: 100%;
+    padding: 40px 20px;
+    background-color: {{ block.settings.background_color }};
+  }
+
+  .ai-video-content-container-{{ ai_gen_id }} {
+    max-width: {{ block.settings.container_max_width }}px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    align-items: center;
+  }
+
+  .ai-video-content-video-wrapper-{{ ai_gen_id }} {
+    position: relative;
+    width: 100%;
+    padding-bottom: 56.25%;
+    overflow: hidden;
+    border-radius: {{ block.settings.video_border_radius }}px;
+    background-color: #f4f4f4;
+  }
+
+  .ai-video-content-video-wrapper-{{ ai_gen_id }} video,
+  .ai-video-content-video-wrapper-{{ ai_gen_id }} iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .ai-video-content-placeholder-{{ ai_gen_id }} {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f4f4f4;
+  }
+
+  .ai-video-content-placeholder-{{ ai_gen_id }} svg {
+    width: 80px;
+    height: 80px;
+    opacity: 0.3;
+  }
+
+  .ai-video-content-text-wrapper-{{ ai_gen_id }} {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 16px;
+  }
+
+  .ai-video-content-heading-{{ ai_gen_id }} {
+    margin: 0;
+    color: {{ block.settings.heading_color }};
+    font-size: {{ block.settings.heading_size }}px;
+    line-height: 1.2;
+    font-weight: {% if block.settings.heading_weight == 'bold' %}700{% else %}600{% endif %};
+  }
+
+  .ai-video-content-description-{{ ai_gen_id }} {
+    margin: 0;
+    color: {{ block.settings.description_color }};
+    font-size: {{ block.settings.description_size }}px;
+    line-height: 1.6;
+  }
+
+  @media screen and (max-width: 749px) {
+    .ai-video-content-container-{{ ai_gen_id }} {
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+
+    .ai-video-content-heading-{{ ai_gen_id }} {
+      font-size: calc({{ block.settings.heading_size }}px * 0.8);
+    }
+
+    .ai-video-content-description-{{ ai_gen_id }} {
+      font-size: calc({{ block.settings.description_size }}px * 0.9);
+    }
+  }
+{% endstyle %}
+
+<video-content-section-{{ ai_gen_id }}
+  class="ai-video-content-{{ ai_gen_id }}"
+  {{ block.shopify_attributes }}
+>
+  <div class="ai-video-content-container-{{ ai_gen_id }}">
+    <div class="ai-video-content-video-wrapper-{{ ai_gen_id }}">
+      {% if block.settings.video_url != blank %}
+        {% if block.settings.video_url contains 'youtube.com' or block.settings.video_url contains 'youtu.be' %}
+          {% assign video_id = block.settings.video_url | split: 'v=' | last | split: '/' | last | split: '&' | first %}
+          <iframe
+            src="https://www.youtube.com/embed/{{ video_id }}?controls=1&modestbranding=1&rel=0"
+            frameborder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen
+            loading="lazy"
+          ></iframe>
+        {% elsif block.settings.video_url contains 'vimeo.com' %}
+          {% assign video_id = block.settings.video_url | split: '/' | last %}
+          <iframe
+            src="https://player.vimeo.com/video/{{ video_id }}"
+            frameborder="0"
+            allow="autoplay; fullscreen; picture-in-picture"
+            allowfullscreen
+            loading="lazy"
+          ></iframe>
+        {% else %}
+          <video
+            controls
+            playsinline
+            {% if block.settings.autoplay %}autoplay muted loop{% endif %}
+          >
+            <source src="{{ block.settings.video_url }}" type="video/mp4">
+          </video>
+        {% endif %}
+      {% else %}
+        <div class="ai-video-content-placeholder-{{ ai_gen_id }}">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="ai-video-content-text-wrapper-{{ ai_gen_id }}">
+      {% if block.settings.heading != blank %}
+        <h2 class="ai-video-content-heading-{{ ai_gen_id }}">
+          {{ block.settings.heading }}
+        </h2>
+      {% endif %}
+
+      {% if block.settings.description != blank %}
+        <div class="ai-video-content-description-{{ ai_gen_id }}">
+          {{ block.settings.description }}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</video-content-section-{{ ai_gen_id }}>
+
+<script>
+  (function() {
+    class VideoContentSection{{ ai_gen_id }} extends HTMLElement {
+      constructor() {
+        super();
+      }
+
+      connectedCallback() {
+        const video = this.querySelector('video');
+        if (video) {
+          video.addEventListener('loadedmetadata', function() {
+            video.play().catch(function() {});
+          });
+        }
+      }
+    }
+
+    customElements.define('video-content-section-{{ ai_gen_id }}', VideoContentSection{{ ai_gen_id }});
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Video with content",
+  "tag": null,
+  "settings": [
+    {
+      "type": "header",
+      "content": "Video"
+    },
+    {
+      "type": "url",
+      "id": "video_url",
+      "label": "Video URL"
+    },
+    {
+      "type": "checkbox",
+      "id": "autoplay",
+      "label": "Autoplay video",
+      "default": false
+    },
+    {
+      "type": "range",
+      "id": "video_border_radius",
+      "min": 0,
+      "max": 40,
+      "step": 2,
+      "unit": "px",
+      "label": "Video border radius",
+      "default": 0
+    },
+    {
+      "type": "header",
+      "content": "Content"
+    },
+    {
+      "type": "richtext",
+      "id": "heading",
+      "label": "Heading",
+      "default": "<p>Discover our story</p>"
+    },
+    {
+      "type": "select",
+      "id": "heading_weight",
+      "label": "Heading weight",
+      "options": [
+        {
+          "value": "semibold",
+          "label": "Semi bold"
+        },
+        {
+          "value": "bold",
+          "label": "Bold"
+        }
+      ],
+      "default": "bold"
+    },
+    {
+      "type": "range",
+      "id": "heading_size",
+      "min": 20,
+      "max": 60,
+      "step": 2,
+      "unit": "px",
+      "label": "Heading size",
+      "default": 36
+    },
+    {
+      "type": "color",
+      "id": "heading_color",
+      "label": "Heading color",
+      "default": "#121212"
+    },
+    {
+      "type": "richtext",
+      "id": "description",
+      "label": "Description",
+      "default": "<p>Share your brand's journey and connect with your customers through compelling video content.</p>"
+    },
+    {
+      "type": "range",
+      "id": "description_size",
+      "min": 12,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "label": "Description size",
+      "default": 16
+    },
+    {
+      "type": "color",
+      "id": "description_color",
+      "label": "Description color",
+      "default": "#121212"
+    },
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "range",
+      "id": "container_max_width",
+      "min": 800,
+      "max": 1600,
+      "step": 100,
+      "unit": "px",
+      "label": "Container max width",
+      "default": 1200
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background color",
+      "default": "#ffffff"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Video with content"
+    }
+  ]
+}
+{% endschema %}
