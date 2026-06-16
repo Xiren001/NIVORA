@@ -210,23 +210,6 @@
 
   document.addEventListener('click', function (e) {
 
-    // Variant pill selection
-    var variantBtn = e.target.closest('[data-variant-btn]');
-    if (variantBtn) {
-      var item = variantBtn.closest('.cart-upsell__item');
-      if (item) {
-        item.querySelectorAll('[data-variant-btn]').forEach(function (b) {
-          b.classList.remove('is-selected');
-          b.setAttribute('aria-pressed', 'false');
-        });
-        variantBtn.classList.add('is-selected');
-        variantBtn.setAttribute('aria-pressed', 'true');
-        var addBtn = item.querySelector('[data-upsell-add]');
-        if (addBtn) addBtn.dataset.variantId = variantBtn.dataset.variantId;
-      }
-      return;
-    }
-
     // Upsell strip "Add" button
     var addBtn = e.target.closest('[data-upsell-add]');
     if (addBtn) {

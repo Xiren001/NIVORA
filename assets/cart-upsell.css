@@ -85,37 +85,6 @@
   pointer-events: none;
 }
 
-/* Variant pills */
-
-.cart-upsell__variants {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 0.8rem;
-}
-
-.cart-upsell__variant-btn {
-  font-size: 1.1rem;
-  padding: 0.3rem 0.8rem;
-  border: 0.1rem solid rgba(var(--color-foreground), 0.25);
-  border-radius: 2rem;
-  background: transparent;
-  color: rgb(var(--color-foreground));
-  cursor: pointer;
-  line-height: 1.4;
-  transition: border-color 0.15s, background 0.15s;
-  white-space: nowrap;
-}
-
-.cart-upsell__variant-btn:hover {
-  border-color: rgba(var(--color-foreground), 0.6);
-}
-
-.cart-upsell__variant-btn.is-selected {
-  background: rgb(var(--color-foreground));
-  color: rgb(var(--color-background));
-  border-color: rgb(var(--color-foreground));
-}
 
 /* ── Drawer variant — 1-up swipeable card ────────────────────────────────── */
 
@@ -188,9 +157,6 @@
 
 .cart-upsell--drawer .cart-upsell__action {
   grid-area: action;
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
 }
 
 .cart-upsell--drawer .cart-upsell__add-btn,
