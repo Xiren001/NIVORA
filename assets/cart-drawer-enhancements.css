@@ -1,0 +1,125 @@
+/* ── Cart drawer design enhancements ─────────────────────────────────────── */
+
+/* ── Empty cart ──────────────────────────────────────────────────────────── */
+
+.cart-drawer__empty-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1.4rem;
+  padding: 0 2rem;
+  position: relative;
+}
+
+.cart-drawer__empty-icon {
+  width: 6rem;
+  height: 6rem;
+  color: rgba(var(--color-foreground), 0.18);
+  margin-bottom: 0.2rem;
+}
+
+.cart-drawer__empty-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.cart-drawer__empty-content .cart__empty-text {
+  font-size: 1.8rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+
+.cart-drawer__empty-content > .button {
+  min-width: 22rem;
+  letter-spacing: 0.06em;
+}
+
+.cart-drawer__empty-content .cart__login-title {
+  margin-top: 0.4rem;
+  margin-bottom: 0.2rem;
+}
+
+/* ── Cart item rows — refined ────────────────────────────────────────────── */
+
+/* Row separation via border rather than margin */
+.cart-drawer .cart-item {
+  border-bottom: 0.1rem solid rgba(var(--color-foreground), 0.06);
+  gap: 0 1.4rem;
+}
+
+.cart-drawer .cart-item:last-child {
+  border-bottom: none;
+}
+
+/* Rounded, clipped product image */
+.cart-drawer .cart-item__media {
+  border-radius: var(--media-border-radius, 0.6rem);
+  overflow: hidden;
+  background-color: rgba(var(--color-foreground), 0.04);
+  align-self: start;
+}
+
+.cart-drawer .cart-item__image {
+  width: 100%;
+  display: block;
+  object-fit: cover;
+  border-radius: var(--media-border-radius, 0.6rem);
+}
+
+/* Table header — more subdued */
+.cart-drawer .cart-items th {
+  border-bottom-color: rgba(var(--color-foreground), 0.06);
+}
+
+.cart-drawer .cart-items thead .caption-with-letter-spacing {
+  font-size: 0.9rem;
+  letter-spacing: 0.1em;
+  color: rgba(var(--color-foreground), 0.38);
+}
+
+/* Product name */
+.cart-drawer .cart-item__name {
+  font-weight: 500;
+  font-size: 1.3rem;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+}
+
+/* Variant options + inline price */
+.cart-drawer .cart-item__details .product-option {
+  font-size: 1.15rem;
+  color: rgba(var(--color-foreground), 0.52);
+}
+
+/* Remove button — subtle until hovered */
+.cart-drawer .cart-remove-button {
+  opacity: 0.28;
+  transition: opacity 0.2s ease;
+}
+
+.cart-drawer .cart-remove-button:hover {
+  opacity: 0.85;
+}
+
+/* ── Drawer header ────────────────────────────────────────────────────────── */
+
+.drawer__heading {
+  font-size: 1.6rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  margin-bottom: 0;
+}
+
+/* ── Footer totals ───────────────────────────────────────────────────────── */
+
+.cart-drawer .totals__total {
+  font-size: 1.15rem;
+  letter-spacing: 0.08em;
+}
+
+.cart-drawer .totals__total-value {
+  font-size: 1.6rem;
+  font-weight: 500;
+}
