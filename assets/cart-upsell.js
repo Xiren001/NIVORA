@@ -345,4 +345,21 @@
     }).observe(drawerEl, { attributes: true, attributeFilter: ['class'] });
   }
 
+  // When cart goes from empty → non-empty, Dawn re-renders the entire drawer
+  // and freshly injects the upsell strip. Watch for it appearing in the DOM.
+  new MutationObserver(function (mutations) {
+    for (var i = 0; i < mutations.length; i++) {
+      var nodes = mutations[i].addedNodes;
+      for (var j = 0; j < nodes.length; j++) {
+        var node = nodes[j];
+        if (node.nodeType !== 1) continue;
+        // Check if the added node IS the strip or CONTAINS it
+        if (node.matches('[data-cart-upsell]') || node.querySelector('[data-cart-upsell]')) {
+          syncStripWithCart(); // hides carted items then calls refreshNav for every strip
+          return;
+        }
+      }
+    }
+  }).observe(document.body, { childList: true, subtree: true });
+
 })();
