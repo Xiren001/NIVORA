@@ -80,6 +80,10 @@
     if (list._upsellScroll) list.removeEventListener('scroll', list._upsellScroll, { passive: true });
 
     var items = Array.from(list.querySelectorAll('.cart-upsell__item:not([hidden])'));
+
+    // Always reset to the first visible item so we never land on an empty slot
+    list.scrollLeft = 0;
+
     if (items.length <= 1) return;
 
     var nav = document.createElement('div');
@@ -328,5 +332,17 @@
 
   syncStripWithCart();
   initAllNavs();
+
+  // Re-init navs each time the cart drawer opens so clientWidth is live
+  var drawerEl = document.querySelector('cart-drawer');
+  if (drawerEl) {
+    new MutationObserver(function (mutations) {
+      mutations.forEach(function (m) {
+        if (m.type === 'attributes' && drawerEl.classList.contains('is-open')) {
+          initAllNavs();
+        }
+      });
+    }).observe(drawerEl, { attributes: true, attributeFilter: ['class'] });
+  }
 
 })();

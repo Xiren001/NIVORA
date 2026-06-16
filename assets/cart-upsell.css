@@ -96,10 +96,13 @@
 .cart-upsell--drawer .cart-upsell__list {
   display: flex;
   flex-direction: row;
-  overflow-x: auto;
+  width: 100%;           /* anchor for min-width:100% on children */
+  overflow-x: scroll;    /* always scrollable, not just when overflowing */
+  overscroll-behavior-x: contain; /* stop horizontal swipe bleeding into the parent drawer */
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+  touch-action: pan-x;   /* tell the browser this element owns horizontal touch */
 }
 
 .cart-upsell--drawer .cart-upsell__list::-webkit-scrollbar {
