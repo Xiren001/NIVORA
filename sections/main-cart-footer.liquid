@@ -37,7 +37,9 @@
         </cart-note>
       {%- endif -%}
 
-      {%- render 'cart-upsell', context: 'page' -%}
+      {%- unless cart == empty -%}
+        {%- render 'cart-upsell', context: 'page' -%}
+      {%- endunless -%}
 
       <div class="cart__blocks">
         {% for block in section.blocks %}

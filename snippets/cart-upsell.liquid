@@ -47,7 +47,7 @@
     {{ 'cart-upsell.css' | asset_url | stylesheet_tag }}
     <script src="{{ 'cart-upsell.js' | asset_url }}" defer="defer"></script>
 
-    <div class="cart-upsell" data-cart-upsell>
+    <div class="cart-upsell cart-upsell--{{ context }}" data-cart-upsell>
       <p class="cart-upsell__heading">{{ 'sections.cart.upsell.title' | t }}</p>
 
       <ul class="cart-upsell__list" role="list">
@@ -75,10 +75,10 @@
               {%- if product.featured_image -%}
                 <img
                   class="cart-upsell__img"
-                  src="{{ product.featured_image | image_url: width: 120 }}"
+                  src="{{ product.featured_image | image_url: width: 300 }}"
                   alt="{{ product.featured_image.alt | escape }}"
-                  width="60"
-                  height="{{ 60 | divided_by: product.featured_image.aspect_ratio | round }}"
+                  width="150"
+                  height="{{ 150 | divided_by: product.featured_image.aspect_ratio | round }}"
                   loading="lazy"
                 >
               {%- else -%}
